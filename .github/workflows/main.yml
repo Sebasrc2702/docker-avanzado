@@ -1,0 +1,42 @@
+name: Docker CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build, Push to ACR & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v3
+
+    # Iniciar sesión en tu Azure Container Registry (en lugar de Docker Hub)
+    - name: Login to Azure Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: platziregistrySebas.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    # Construir y etiquetar la imagen con tu registro de Azure
+    - name: Build docker image
+      run: |
+        docker build --platform linux/amd64 \
+          --tag platziregistrySebas.azurecr.io/websiteplatzi:latest \
+          -f CI/Dockerfile .
+
+    # Subir la imagen a platziregistrySebas
+    - name: Publish docker image
+      run: |
+        docker push platziregistrySebas.azurecr.io/websiteplatzi:latest
+
+    # Desplegar en tu Azure App Service (sitiowebsebas)
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'sitiowebsebas'
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        images: 'platziregistrySebas.azurecr.io/websiteplatzi:latest'
